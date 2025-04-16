@@ -1,0 +1,5 @@
+Office365-REST-Python-Client>=2.5.0
+dropbox>=11.36.0
+python-dotenv>=1.0.0
+tqdm>=4.65.0
+requests==2.31.0 
