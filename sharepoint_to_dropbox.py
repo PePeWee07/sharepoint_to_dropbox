@@ -93,11 +93,13 @@ class SharePointToDropboxMigrator:
             raise
 
     def download_from_sharepoint(self, file_url):
-        """Descarga un archivo desde SharePoint"""
+        """ 
+        Descarga un archivo desde SharePoint y retorna su contenido en bytes 
+        """
         try:
-            file = File.open_binary(self.ctx, file_url)
-            return file
-        except (ValueError, IOError, RuntimeError) as download_error:
+            response = File.open_binary(self.ctx, file_url)
+            return response.content
+        except Exception as download_error:
             logging.error("Error al descargar %s: %s", file_url, str(download_error))
             return None
 
@@ -162,27 +164,33 @@ class SharePointToDropboxMigrator:
     def start_migration(self, source_folder, target_folder):
         """Inicia el proceso de migración"""
         try:
-            # Obtener lista de archivos de SharePoint
-            folder = self.ctx.web.get_folder_by_server_relative_url(source_folder).expand(["Files"])
-            #files = folder.files
-            self.ctx.load(folder.files)
+            # 1) Obtén la carpeta y expande los archivos
+            folder = (
+                self.ctx.web
+                .get_folder_by_server_relative_url(source_folder)
+                .expand(["Files"])
+            )
+            # 2) Carga el objeto folder (incluyendo Files)
+            self.ctx.load(folder)
             self.ctx.execute_query()
 
-            total_files = len(folder.files)
+            files = folder.files
+            total_files = len(files)
             logging.info("Total de archivos a migrar: %d", total_files)
 
-            # Usar ThreadPoolExecutor para migración paralela
+            # 3) Usar ThreadPoolExecutor para migración paralela
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = []
-                for file in folder.files:
-                    print("Procesando archivo: ", file.properties["Name"])
+                for file in files:
+                    name = file.properties["Name"]
+                    print(f"Procesando archivo: {name}")
                     sharepoint_path = file.serverRelativeUrl
                     dropbox_path = f"{target_folder}/{os.path.basename(sharepoint_path)}"
                     futures.append(
                         executor.submit(self.migrate_file, sharepoint_path, dropbox_path)
                     )
 
-                # Mostrar barra de progreso
+                # 4) Mostrar barra de progreso
                 with tqdm(total=total_files, desc="Migrando archivos") as pbar:
                     for future in futures:
                         future.result()
@@ -190,8 +198,9 @@ class SharePointToDropboxMigrator:
 
             logging.info("Migración completada")
         except Exception as migration_process_error:
-            logging.error("Error durante la migración: %s", str(migration_process_error))
+            logging.error("Error durante la migración: %s", migration_process_error)
             raise
+
 
 if __name__ == "__main__":
     try:
