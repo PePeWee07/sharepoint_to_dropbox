@@ -1,24 +1,23 @@
+# Import libraries
+from office365.sharepoint.client_context import ClientContext
+from office365.runtime.auth.client_credential import ClientCredential
+
 import os
 from dotenv import load_dotenv
-
-# 1) Carga tu .env
 load_dotenv()
 
-from office365.runtime.auth.client_credential import ClientCredential
-from office365.sharepoint.client_context import ClientContext
-
 # 2) Lee variables de entorno
-client_id     = os.getenv("SHAREPOINT_CLIENT_ID")
-client_secret = os.getenv("SHAREPOINT_CLIENT_SECRET")
-site_url      = os.getenv("SHAREPOINT_SITE_URL")
-folder_path   = os.getenv("SHAREPOINT_FOLDER")
+SP_CLIENT_ID     = os.getenv("SHAREPOINT_CLIENT_ID")
+SP_CLIENT_SECRET = os.getenv("SHAREPOINT_CLIENT_SECRET")
+SP_URL      = "https://ucacueedu.sharepoint.com/sites/DTIC/"
+relative_folder_url   = "/sites/DTIC/Administracion de Aplicaciones/Informes/EVEA/Prueba MIGRACION DROPBOX"
 
-# 3) Autenticación App-Only
-credentials = ClientCredential(client_id, client_secret)
-ctx = ClientContext(site_url).with_credentials(credentials)
+# App-based authentication with access credentials
+context = ClientContext(SP_URL).with_credentials(ClientCredential(SP_CLIENT_ID, SP_CLIENT_SECRET))
+folder = context.web.get_folder_by_server_relative_url(relative_folder_url).expand(["Files"])
+context.load(folder)
+context.execute_query()
 
-# 4) Listado de archivos en la carpeta
-target_folder = ctx.web.get_folder_by_server_relative_url(folder_path)
-files = target_folder.files.get().execute_query()
-for f in files:
-    print(f.properties["Name"])
+# Processes each Sharepoint file in folder
+for file in folder.files:
+    print(f'Processing file: {file.properties["Name"]}')

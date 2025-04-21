@@ -163,18 +163,19 @@ class SharePointToDropboxMigrator:
         """Inicia el proceso de migración"""
         try:
             # Obtener lista de archivos de SharePoint
-            folder = self.ctx.web.get_folder_by_server_relative_url(source_folder)
-            files = folder.files
-            self.ctx.load(files)
+            folder = self.ctx.web.get_folder_by_server_relative_url(source_folder).expand(["Files"])
+            #files = folder.files
+            self.ctx.load(folder.files)
             self.ctx.execute_query()
 
-            total_files = len(files)
+            total_files = len(folder.files)
             logging.info("Total de archivos a migrar: %d", total_files)
 
             # Usar ThreadPoolExecutor para migración paralela
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = []
-                for file in files:
+                for file in folder.files:
+                    print("Procesando archivo: ", file.properties["Name"])
                     sharepoint_path = file.serverRelativeUrl
                     dropbox_path = f"{target_folder}/{os.path.basename(sharepoint_path)}"
                     futures.append(
