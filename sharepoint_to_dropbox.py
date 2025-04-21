@@ -78,19 +78,27 @@ class SharePointToDropboxMigrator:
             raise
 
     def setup_dropbox(self):
-        """Configura la conexión con Dropbox"""
-        try:
-            access_token = os.getenv('DROPBOX_ACCESS_TOKEN')
-            if not access_token:
-                raise ValueError("Falta el token de acceso de Dropbox en el archivo .env")
+         """Configura la conexión con Dropbox usando refresh token"""
+         try:
+            app_key    = os.getenv('DROPBOX_APP_KEY')
+            app_secret = os.getenv('DROPBOX_APP_SECRET')
+            refresh_token = os.getenv('DROPBOX_REFRESH_TOKEN')
+            if not all([app_key, app_secret, refresh_token]):
+                raise ValueError("Faltan DROPBOX_APP_KEY, APP_SECRET o REFRESH_TOKEN en el .env")
 
-            self.dbx = dropbox.Dropbox(access_token)
-            # Realiza una llamada a la API para verificar el token
+            # El SDK usará el refresh_token para obtener un access token válido
+            self.dbx = dropbox.Dropbox(
+                app_key=app_key,
+                app_secret=app_secret,
+                oauth2_refresh_token=refresh_token
+            )
+
+             # Verifica la conexión a la cuenta
             self.dbx.users_get_current_account()
             logging.info("Conexión a Dropbox establecida correctamente")
-        except (ValueError, Exception) as dropbox_error:
-            logging.error("Error al configurar Dropbox: %s", str(dropbox_error))
-            raise
+         except Exception as dropbox_error:
+             logging.error("Error al configurar Dropbox: %s", dropbox_error)
+             raise
 
     def download_from_sharepoint(self, file_url):
         """ 
