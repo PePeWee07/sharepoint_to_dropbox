@@ -170,45 +170,56 @@ class SharePointToDropboxMigrator:
             return False
 
     def start_migration(self, source_folder, target_folder):
-        """Inicia el proceso de migración"""
+        """
+        Inicia el proceso de migración de source_folder (SharePoint) 
+        hacia target_folder (Dropbox), recorriendo recursivamente subcarpetas.
+        """
         try:
-            # 1) Obtén la carpeta y expande los archivos
+            # 1) Carga folder con Files y Folders
             folder = (
                 self.ctx.web
-                .get_folder_by_server_relative_url(source_folder)
-                .expand(["Files"])
+                    .get_folder_by_server_relative_url(source_folder)
+                    .expand(["Files", "Folders"])
             )
-            # 2) Carga el objeto folder (incluyendo Files)
             self.ctx.load(folder)
             self.ctx.execute_query()
 
-            files = folder.files
-            total_files = len(files)
-            logging.info("Total de archivos a migrar: %d", total_files)
+            files      = folder.files
+            subfolders = folder.folders
 
-            # 3) Usar ThreadPoolExecutor para migración paralela
+            # 2) Crea la carpeta en Dropbox (si no existe)
+            try:
+                self.dbx.files_create_folder_v2(target_folder)
+            except dropbox.exceptions.ApiError as e:
+                if not (e.error.is_path() and e.error.get_path().is_conflict()):
+                    raise
+
+            logging.info("'%s' → %d archivos, %d subcarpetas", source_folder, len(files), len(subfolders))
+
+            # 3) Migra todos los archivos de este nivel en paralelo, con tqdm
             with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = []
                 for file in files:
-                    name = file.properties["Name"]
-                    print(f"Procesando archivo: {name}")
-                    sharepoint_path = file.serverRelativeUrl
-                    dropbox_path = f"{target_folder}/{os.path.basename(sharepoint_path)}"
+                    sp_path = file.serverRelativeUrl
+                    dbx_path = f"{target_folder}/{file.properties['Name']}"
                     futures.append(
-                        executor.submit(self.migrate_file, sharepoint_path, dropbox_path)
+                        executor.submit(self.migrate_file, sp_path, dbx_path)
                     )
 
-                # 4) Mostrar barra de progreso
-                with tqdm(total=total_files, desc="Migrando archivos") as pbar:
-                    for future in futures:
-                        future.result()
-                        pbar.update(1)
+                # aquí es donde reaparecerá la barra de progreso
+                for f in tqdm(futures, desc=f"Migrando archivos en {source_folder}", unit="archivo"):
+                    f.result()
 
-            logging.info("Migración completada")
-        except Exception as migration_process_error:
-            logging.error("Error durante la migración: %s", migration_process_error)
+            # 4) Recurse en cada subcarpeta
+            for sub in subfolders:
+                sub_name = sub.properties["Name"]
+                sub_sp   = sub.serverRelativeUrl
+                sub_dbx  = f"{target_folder}/{sub_name}"
+                self.start_migration(sub_sp, sub_dbx)
+
+        except Exception as e:
+            logging.error("Error migrando '%s': %s", source_folder, e)
             raise
-
 
 if __name__ == "__main__":
     try:

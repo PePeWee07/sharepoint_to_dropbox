@@ -9,9 +9,8 @@ load_dotenv()
 # 2) Lee variables de entorno
 SP_CLIENT_ID     = os.getenv("SHAREPOINT_CLIENT_ID")
 SP_CLIENT_SECRET = os.getenv("SHAREPOINT_CLIENT_SECRET")
-SP_URL      = "https://ucacueedu.sharepoint.com/sites/DTIC/"
-relative_folder_url   = "/sites/DTIC/Administracion de Aplicaciones/Informes/EVEA/Prueba MIGRACION DROPBOX"
-
+SP_URL      = os.getenv("SHAREPOINT_SITE_URL")
+relative_folder_url   = os.getenv("SHAREPOINT_FOLDER")
 # App-based authentication with access credentials
 context = ClientContext(SP_URL).with_credentials(ClientCredential(SP_CLIENT_ID, SP_CLIENT_SECRET))
 folder = context.web.get_folder_by_server_relative_url(relative_folder_url).expand(["Files"])
