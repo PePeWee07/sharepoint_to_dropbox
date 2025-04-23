@@ -15,12 +15,14 @@ flow = DropboxOAuth2FlowNoRedirect(
 )
 
 # 1) Abre la URL e inicia sesión en Dropbox autorizando tu app
-print("1) Ve a esta URL en tu navegador y autoriza tu app:")
-print(flow.start())
+print("1) Abre esta URL en tu navegador y autoriza como Admin de tu equipo:")
+print("   →", flow.start())
 print()
 
+
 # 2) Pega aquí el código que copie Dropbox tras autorizar
-code = input("2) Introduce el código y pulsa Enter: ").strip()
+code = input("2) Pega aquí el código que te devuelve Dropbox y pulsa Enter: ").strip()
+print()
 
 # 3) Intercambia el código por tokens
 oauth_result = flow.finish(code)
